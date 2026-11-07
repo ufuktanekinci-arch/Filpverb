@@ -1,0 +1,56 @@
+name: FlipVerb bauen
+
+# Baut das Plugin automatisch auf GitHub (Windows + Mac).
+# Starten: Reiter "Actions" -> "FlipVerb bauen" -> "Run workflow"
+# (läuft auch automatisch, sobald du Dateien hochlädst)
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfigurieren
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Bauen
+        run: cmake --build build --config Release --parallel
+
+      - name: VST3 einsammeln
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $vst = Get-ChildItem -Path build -Recurse -Directory -Filter "FlipVerb.vst3" | Select-Object -First 1
+          Copy-Item -Recurse $vst.FullName "dist/FlipVerb.vst3"
+          Get-ChildItem -Recurse dist | Select-Object -First 20 FullName
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlipVerb-Windows-VST3
+          path: dist
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfigurieren
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+
+      - name: Bauen
+        run: cmake --build build --config Release --parallel
+
+      - name: VST3 einsammeln
+        run: |
+          mkdir -p dist
+          VST=$(find build -type d -name "FlipVerb.vst3" | head -n 1)
+          cp -R "$VST" dist/FlipVerb.vst3
+          ls -R dist | head -20
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlipVerb-Mac-VST3
+          path: dist
